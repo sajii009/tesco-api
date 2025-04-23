@@ -1029,8 +1029,8 @@ app.get('/details/:id', async (req, res) => {
 
 app.post('/withdraw', async (req, res) => {
   try {
-    const { sender, receiver, name, bank, amount, charges } = req.body;
-    const newWithdraw = new Withdraw({ sender, receiver, name, bank, amount, charges });
+    const { sender, receiver, name, bank, accountNumber, amount, charges } = req.body;
+    const newWithdraw = new Withdraw({ sender, receiver, name, bank, accountNumber, amount, charges });
     await newWithdraw.save();
     const history = new History({ userId: sender, type: 'withdraw', amount, requestId: newWithdraw._id });
     await history.save();
