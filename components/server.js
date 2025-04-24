@@ -1298,7 +1298,7 @@ app.get('/deposit-history/:id', async (req, res) => {
 app.get('/last-withdraw/:id', async (req, res) => {
   try {
     const id = req.params.id;
-    const withdraw = await Withdraw.findOne({ sender: id }).sort({ _id: -1 });
+    const withdraw = await Withdraw.find({ sender: id }).sort({ _id: -1 }).limit(2);;
     res.json(withdraw);
   } catch (error) {
     console.error('Error getting getting withdraw', error);
