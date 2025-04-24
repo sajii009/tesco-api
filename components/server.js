@@ -682,6 +682,18 @@ app.patch("/myplan/:id", async (req, res) => {
   }
 });
 
+
+app.delete('/myplan/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    await MyPlan.findByIdAndRemove(id);
+    res.json({ message: 'Plan deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting Plan' });
+  }
+});
+
+
 app.patch("/dailyclaim/:id", async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
