@@ -23,6 +23,7 @@ const Plan = require('./Plan');
 const Promo = require('./Promo');
 const Commission = require('./Commission');
 const AdminRegister = require('./AdminRegister');
+const AdminAccount = require('./AdminAccount');
 
 
 const PORT = process.env.PORT || 4000;
@@ -1745,6 +1746,38 @@ app.get('/admin-login', async (req, res) => {
     res.status(200).json(commission);
   } catch (error) {
     console.error('Error fetching commission:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+
+app.post('/admin-account', async (req, res) => {
+  try {
+    const { name, bank, accountNumber } = req.body;
+    const account = new AdminAccount({ name, bank, accountNumber });
+    await account.save();
+    res.status(200).json(account);
+  } catch (error) {
+    console.error('Error adding account:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+})
+
+app.get('/admin-account', async (req, res) => {
+  try {
+    const account = await AdminAccount.find().sort({ _id: -1 });
+    res.status(200).json(account);
+  } catch (error) {
+    console.error('Error getting account:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+});
+app.delete('/admin-account/:id', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const account = await AdminAccount.findByIdAndDelete(id);
+    res.status(200).json(account);
+  } catch (error) {
+    console.error('Error getting account:', error);
     res.status(500).json({ message: 'Internal Server Error' });
   }
 });
