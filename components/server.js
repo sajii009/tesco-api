@@ -1106,6 +1106,20 @@ app.get('/withdraw/reciever/:id', async (req, res) => {
   }
 });
 
+app.delete("/withdraw/:id", async (req, res) => {
+  try {
+    const remove = await Withdraw.findByIdAndDelete(req.params.id);
+    if (!remove) {
+      return res.status(404).send("Data not found");
+    }
+    if (!req.params.id) {
+      res.status(201).send();
+    }
+  } catch (e) {
+    res.status(400).send(e);
+  }
+})
+
 app.post('/bank', async (req, res) => {
   try {
     const { userId, bankName, accountName, accountNumber } = req.body;
