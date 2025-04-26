@@ -1184,11 +1184,19 @@ app.patch("/verifywithdraw/:id", async (req, res) => {
   try {
     const id = req.params.id;
 
+
     const withdraw = await Withdraw.findById(id).session(session);
     if (!withdraw) {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).send({ message: "User not found" });
+    }
+
+    const checkBalance = await Register.findById(withdraw.sender).session(session);
+    if (checkBalance.balance < withdraw.amount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).send({ message: "Insufficient Balance" });
     }
 
     await Withdraw.findByIdAndUpdate(
