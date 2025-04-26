@@ -1046,16 +1046,17 @@ app.post('/withdraw', async (req, res) => {
     const { sender, receiver, name, bank, accountNumber, amount, charges } = req.body;
 
     const deduction = parseFloat((amount + charges).toFixed(2));
-    const user = await Register.findByIdAndUpdate(
+    const user = await Register.findById(sender).session(session);
+    if (!user || user.balance < deduction) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).send({ message: "Insufficient balance" });
+    }
+    await Register.findByIdAndUpdate(
       sender,
       { $inc: { pendingWithdraw: amount, balance: -deduction } },
       { new: true, session }
     );
-    if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      return res.status(404).send({ message: "User not found" });
-    }
 
     const newWithdraw = new Withdraw({ sender, receiver, name, bank, accountNumber, amount, charges });
     await newWithdraw.save({ session });
@@ -1199,6 +1200,7 @@ app.patch('/bank/:id', async (req, res) => {
 
 
 app.patch("/verifywithdraw/:id", async (req, res) => {
+
   const session = await Withdraw.startSession();
   session.startTransaction();
 
@@ -1212,7 +1214,7 @@ app.patch("/verifywithdraw/:id", async (req, res) => {
       session.endSession();
       return res.status(404).send({ message: "User not found" });
     }
-    
+
     await Withdraw.findByIdAndUpdate(
       id,
       { pending: false },
@@ -1224,7 +1226,7 @@ app.patch("/verifywithdraw/:id", async (req, res) => {
       {
         $inc: {
           pendingWithdraw: -withdraw.amount,
-          totalWithdraw: withdraw.amount - (withdraw.amount * 2 / 100),
+          totalWithdraw: withdraw.amount + withdraw.charges,
         },
       },
       { new: true, session }
@@ -1262,6 +1264,13 @@ app.patch("/rejectwithdraw/:id", async (req, res) => {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).send({ message: "User not found" });
+    }
+
+    const user = await Register.findById(withdraw.sender).session(session);
+    if (!user || user.pendingWithdraw < withdraw.amount) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(400).send({ message: "Invalid pending withdrawal amount" });
     }
 
     await Register.findByIdAndUpdate(
