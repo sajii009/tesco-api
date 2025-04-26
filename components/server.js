@@ -1039,13 +1039,29 @@ app.get('/details/:id', async (req, res) => {
 
 
 app.post('/withdraw', async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { sender, receiver, name, bank, accountNumber, amount, charges } = req.body;
-    const newWithdraw = new Withdraw({ sender, receiver, name, bank, accountNumber, amount, charges });
-    await newWithdraw.save();
-    const history = new History({ userId: sender, type: 'withdraw', amount, requestId: newWithdraw._id });
-    await history.save();
 
+    const deduction = parseFloat((amount + charges).toFixed(2));
+    const user = await Register.findByIdAndUpdate(
+      sender,
+      { $inc: { pendingWithdraw: amount, balance: -deduction } },
+      { new: true, session }
+    );
+    if (!user) {
+      await session.abortTransaction();
+      session.endSession();
+      return res.status(404).send({ message: "User not found" });
+    }
+
+    const newWithdraw = new Withdraw({ sender, receiver, name, bank, accountNumber, amount, charges });
+    await newWithdraw.save({ session });
+
+    const history = new History({ userId: sender, type: 'withdraw', amount, requestId: newWithdraw._id });
+    await history.save({ session });
 
     await new Notification({
       sender: sender,
@@ -1053,10 +1069,15 @@ app.post('/withdraw', async (req, res) => {
       heading: 'Withdraw Request',
       subHeading: `New Withdraw Request of amount ${amount} Rs.`,
       path: '/'
-    }).save();
+    }).save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
 
     res.status(201).json(newWithdraw);
   } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
     console.error('Error creating withdraw', error);
     res.status(500).send('Internal Server Error');
   }
@@ -1193,7 +1214,7 @@ app.patch("/verifywithdraw/:id", async (req, res) => {
     }
 
     const checkBalance = await Register.findById(withdraw.sender).session(session);
-    if (checkBalance.balance < withdraw.amount) {
+    if (checkBalance.pendingWithdraw < withdraw.amount) {
       await session.abortTransaction();
       session.endSession();
       return res.status(404).send({ message: "Insufficient Balance" });
@@ -1209,7 +1230,7 @@ app.patch("/verifywithdraw/:id", async (req, res) => {
       withdraw.sender,
       {
         $inc: {
-          balance: -withdraw.amount,
+          pendingWithdraw: -withdraw.amount,
           totalWithdraw: withdraw.amount - (withdraw.amount * 2 / 100),
         },
       },
@@ -1249,6 +1270,17 @@ app.patch("/rejectwithdraw/:id", async (req, res) => {
       session.endSession();
       return res.status(404).send({ message: "User not found" });
     }
+
+    await Register.findByIdAndUpdate(
+      withdraw.sender,
+      {
+        $inc: {
+          pendingWithdraw: -withdraw.amount,
+          balance: withdraw.amount + withdraw.charges,
+        },
+      },
+      { new: true, session }
+    );
 
     if (withdraw.pending && withdraw.scam) {
       await session.abortTransaction();

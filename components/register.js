@@ -37,6 +37,10 @@ const registerSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  pendingWithdraw: {
+    type: Number,
+    default: 0
+  },
   totalWithdraw: {
     type: Number,
     default: 0
