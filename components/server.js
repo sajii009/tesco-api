@@ -1824,6 +1824,50 @@ app.delete('/admin-account/:id', async (req, res) => {
   }
 });
 
+
+app.get('/admin-today', async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const deposits = await ScreenShots.find({
+      updatedAt: { $gte: startOfDay, $lte: endOfDay },
+      verify: true,
+      scam: false
+    });
+
+    const totalAmount = deposits.reduce((sum, deposit) => sum + deposit.amount, 0);
+
+    const users = await Register.find({
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    const totalUsers = users.length;
+
+
+    const withdrawals = await Withdraw.find({
+      timestamp: { $gte: startOfDay, $lte: endOfDay },
+      pending: false,
+      scam: false
+    });
+
+    const totalWithdraw = withdrawals.reduce((sum, withdraw) => sum + withdraw.amount, 0);
+
+
+    res.json({
+      totdayDeposit: totalAmount,
+      totalUser: totalUsers,
+      totalWithdraw: totalWithdraw,
+    });
+  } catch (error) {
+    console.error('Error fetching today\'s deposit:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
